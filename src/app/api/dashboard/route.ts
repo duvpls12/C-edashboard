@@ -13,43 +13,47 @@ export async function GET() {
 
   const stripe = new Stripe(key, { apiVersion: '2024-06-20' })
 
-  const payments: Stripe.PaymentIntent[] = []
-  let hasMore = true
-  let startingAfter: string | undefined = undefined
+  const rawPayments: {
+    id: string
+    created: number
+    amount: number
+    metadata: Record<string, string>
+    payment_link: string | null
+  }[] = []
 
-  while (hasMore) {
-    const params: Stripe.PaymentIntentListParams = {
-      limit: 100,
-    }
-    if (startingAfter) params.starting_after = startingAfter
+  for (const plinkId of Object.keys(PAYMENT_LINKS)) {
+    let hasMore = true
+    let startingAfter: string | undefined = undefined
 
-    const page = await stripe.paymentIntents.list(params)
+    while (hasMore) {
+      const params: Stripe.Checkout.SessionListParams = {
+        payment_link: plinkId,
+        limit: 100,
+      }
+      if (startingAfter) params.starting_after = startingAfter
 
-    for (const pi of page.data) {
-      if (pi.status === 'succeeded') {
-        payments.push(pi)
+      const page = await stripe.checkout.sessions.list(params)
+
+      for (const session of page.data) {
+        if (session.payment_status === 'paid' && session.amount_total) {
+          rawPayments.push({
+            id: session.id,
+            created: session.created,
+            amount: session.amount_total,
+            metadata: (session.metadata ?? {}) as Record<string, string>,
+            payment_link: plinkId,
+          })
+        }
+      }
+
+      hasMore = page.has_more
+      if (page.data.length > 0) {
+        startingAfter = page.data[page.data.length - 1].id
+      } else {
+        hasMore = false
       }
     }
-
-    hasMore = page.has_more
-    if (page.data.length > 0) {
-      startingAfter = page.data[page.data.length - 1].id
-    } else {
-      hasMore = false
-    }
   }
-
-  const knownLinks = new Set(Object.keys(PAYMENT_LINKS))
-
-  const rawPayments = payments
-    .map((pi) => ({
-      id: pi.id,
-      created: pi.created,
-      amount: pi.amount,
-      metadata: pi.metadata as Record<string, string>,
-      payment_link: ((pi as unknown) as Record<string, unknown>).payment_link as string | null ?? null,
-    }))
-    .filter((p) => p.payment_link !== null && knownLinks.has(p.payment_link))
 
   const data = buildDashboardData(rawPayments)
   return NextResponse.json(data)

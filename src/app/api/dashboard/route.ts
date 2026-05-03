@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { buildDashboardData } from '@/lib/calculations'
+import { PAYMENT_LINKS } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,13 +39,17 @@ export async function GET() {
     }
   }
 
-  const rawPayments = payments.map((pi) => ({
-    id: pi.id,
-    created: pi.created,
-    amount: pi.amount,
-    metadata: pi.metadata as Record<string, string>,
-    payment_link: ((pi as unknown) as Record<string, unknown>).payment_link as string | null ?? null,
-  }))
+  const knownLinks = new Set(Object.keys(PAYMENT_LINKS))
+
+  const rawPayments = payments
+    .map((pi) => ({
+      id: pi.id,
+      created: pi.created,
+      amount: pi.amount,
+      metadata: pi.metadata as Record<string, string>,
+      payment_link: ((pi as unknown) as Record<string, unknown>).payment_link as string | null ?? null,
+    }))
+    .filter((p) => p.payment_link !== null && knownLinks.has(p.payment_link))
 
   const data = buildDashboardData(rawPayments)
   return NextResponse.json(data)

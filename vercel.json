@@ -2,8 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "env": {
-    "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
-  }
+  "installCommand": "npm install"
 }

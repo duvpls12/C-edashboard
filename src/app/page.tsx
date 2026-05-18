@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { DashboardData, SaleLine, ProductStats, PayoutSummary } from '@/lib/types'
+import { SETTLEMENTS, settledFor } from '@/lib/settlements'
 
 function usd(n: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -41,34 +42,114 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   )
 }
 
-function PayoutCard({ payout }: { payout: PayoutSummary }) {
-  const rows = [
+function PayoutCard({ payout, recipientKey }: { payout: PayoutSummary; recipientKey: 'david' | 'josh' | 'jacob' }) {
+  const settled = settledFor(recipientKey)
+  const outstanding = Math.max(0, payout.total - settled)
+
+  const earningsRows = [
     { label: 'LUT Share', value: payout.lutShare },
     { label: 'Blueprint Share', value: payout.blueprintShare },
     { label: 'Preset Commission', value: payout.presetCommission },
   ]
 
   return (
-    <div style={{ background: '#111111', border: '1px solid #C9A84C', padding: '24px 28px', flex: '1 1 240px', minWidth: '240px' }}>
+    <div style={{ background: '#111111', border: '1px solid #C9A84C', padding: '24px 28px', flex: '1 1 260px', minWidth: '260px' }}>
       <div style={{ color: '#C9A84C', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'Inter, sans-serif' }}>
         Payout
       </div>
       <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '18px', fontWeight: 600, color: '#ffffff', marginBottom: '18px' }}>
         {payout.name}
       </div>
-      <div style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '26px', fontWeight: 600, color: '#C9A84C', marginBottom: '20px', lineHeight: 1 }}>
-        {usd(payout.total)}
+
+      {/* Total Earned */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ color: '#555', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Inter, sans-serif', marginBottom: '4px' }}>Total Earned</div>
+        <div style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '26px', fontWeight: 600, color: '#C9A84C', lineHeight: 1 }}>
+          {usd(payout.total)}
+        </div>
       </div>
-      <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {rows.map((r) => (
+
+      {/* Earnings breakdown */}
+      <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: '12px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+        {earningsRows.map((r) => (
           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#666', fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>{r.label}</span>
-            <span style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '13px', color: r.value > 0 ? '#ffffff' : '#333' }}>
+            <span style={{ color: '#555', fontSize: '11px', fontFamily: 'Inter, sans-serif' }}>{r.label}</span>
+            <span style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '12px', color: r.value > 0 ? '#aaa' : '#2a2a2a' }}>
               {usd(r.value)}
             </span>
           </div>
         ))}
       </div>
+
+      {/* Settlement status */}
+      {settled > 0 && (
+        <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#4a7c59', fontSize: '11px', fontFamily: 'Inter, sans-serif' }}>Settled / Credited</span>
+            <span style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '12px', color: '#4a9e6a' }}>
+              -{usd(settled)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#888', fontSize: '11px', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Outstanding</span>
+            <span style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", fontSize: '13px', color: outstanding > 0 ? '#ffffff' : '#4a9e6a', fontWeight: 600 }}>
+              {outstanding > 0 ? usd(outstanding) : 'Paid'}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettlementHistory() {
+  const thStyle: React.CSSProperties = {
+    padding: '10px 14px',
+    textAlign: 'left',
+    fontSize: '10px',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: '#666',
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 500,
+    borderBottom: '1px solid #1E1E1E',
+    whiteSpace: 'nowrap',
+  }
+
+  const tdStyle: React.CSSProperties = {
+    padding: '11px 14px',
+    borderBottom: '1px solid #0F0F0F',
+    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+    fontSize: '13px',
+    color: '#fff',
+  }
+
+  const nameMap: Record<string, string> = { david: 'David Eby', josh: 'Josh Cohen', jacob: 'Jacob' }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111111', border: '1px solid #1E1E1E' }}>
+        <thead>
+          <tr>
+            {['Date', 'Recipient', 'Amount', 'Note'].map((h) => (
+              <th key={h} style={thStyle}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {SETTLEMENTS.map((s, i) => (
+            <tr key={i}>
+              <td style={{ ...tdStyle, fontFamily: 'Inter, sans-serif', fontSize: '13px' }}>
+                {s.date}
+                <span style={{ color: '#444', marginLeft: '8px', fontSize: '11px' }}>{s.time}</span>
+              </td>
+              <td style={{ ...tdStyle, fontFamily: 'Inter, sans-serif', color: '#C9A84C' }}>{nameMap[s.recipient]}</td>
+              <td style={{ ...tdStyle, color: '#4a9e6a' }}>{usd(s.amount)}</td>
+              <td style={{ ...tdStyle, fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#888' }}>{s.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -327,10 +408,16 @@ export default function Dashboard() {
             <div>
               <SectionLabel>Payouts</SectionLabel>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <PayoutCard payout={data.payouts.david} />
-                <PayoutCard payout={data.payouts.josh} />
-                <PayoutCard payout={data.payouts.jacob} />
+                <PayoutCard payout={data.payouts.david} recipientKey="david" />
+                <PayoutCard payout={data.payouts.josh} recipientKey="josh" />
+                <PayoutCard payout={data.payouts.jacob} recipientKey="jacob" />
               </div>
+            </div>
+
+            {/* Settlement History */}
+            <div>
+              <SectionLabel>Settlement History</SectionLabel>
+              <SettlementHistory />
             </div>
 
             {/* Sales Log */}

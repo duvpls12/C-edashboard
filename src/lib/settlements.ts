@@ -21,6 +21,13 @@ export const SETTLEMENTS: Settlement[] = [
     amount: 186.14,
     note: 'Invoiced and applied as credit against balance owed to David',
   },
+  {
+    date: '2026-05-28',
+    time: '',
+    recipient: 'jacob',
+    amount: 27.92,
+    note: 'Credit applied against balance owed to David for services',
+  },
 ]
 
 export function settledFor(recipient: 'david' | 'josh' | 'jacob'): number {
